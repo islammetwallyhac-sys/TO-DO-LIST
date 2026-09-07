@@ -230,10 +230,94 @@
   .bar-lbl{font-size:10.5px; color:var(--stone);}
 
   ::-webkit-scrollbar{width:9px;} ::-webkit-scrollbar-thumb{background:var(--stone-light); border-radius:10px;}
+
+  /* ---- Auth screen ---- */
+  .auth-wrap{min-height:100vh; display:flex; align-items:center; justify-content:center; padding:20px;}
+  .auth-card{width:100%; max-width:380px; background:var(--white); border:1px solid var(--stone-light); border-radius:14px; padding:32px 28px;}
+  .auth-brand{font-family:var(--serif); font-size:24px; font-weight:600; margin-bottom:4px;}
+  .auth-sub{font-size:13px; color:var(--stone); margin-bottom:24px;}
+  .auth-tabs{display:flex; border:1px solid var(--stone-light); border-radius:8px; overflow:hidden; margin-bottom:20px;}
+  .auth-tabs button{flex:1; padding:9px; background:var(--white); border:none; font-size:13px; color:var(--stone); border-inline-start:1px solid var(--stone-light);}
+  .auth-tabs button:first-child{border-inline-start:none;}
+  .auth-tabs button.active{background:var(--moss); color:#fff; font-weight:600;}
+  .auth-error{background:var(--clay-light); color:var(--clay); font-size:12.5px; padding:9px 12px; border-radius:8px; margin-bottom:14px;}
+  .auth-info{background:var(--moss-light); color:var(--moss); font-size:12.5px; padding:9px 12px; border-radius:8px; margin-bottom:14px;}
+  .auth-submit{width:100%; justify-content:center; margin-top:6px;}
+  .auth-link{background:none; border:none; color:var(--moss); font-size:12.5px; text-decoration:underline; padding:0; margin-top:14px; display:block; text-align:center; width:100%;}
+  .auth-setup-note{margin-top:18px; font-size:11.5px; color:var(--stone); line-height:1.5; border-top:1px solid var(--stone-light); padding-top:14px;}
 </style>
 </head>
 <body>
 <div id="app"></div>
+
+<!--
+  ============================================================
+  FIREBASE SETUP — REQUIRED FOR LOGIN TO WORK
+  ============================================================
+  1. Go to https://console.firebase.google.com → Create a project (free).
+  2. In the project, go to Build → Authentication → Get started →
+     enable the "Email/Password" sign-in provider.
+  3. Go to Project settings (gear icon) → General → "Your apps" →
+     click the </> (web) icon → register an app (no hosting needed).
+  4. Firebase will show you a firebaseConfig object. Copy its values
+     into the object below, replacing the placeholder strings.
+  5. Save this file. Login/sign-up will then work for real.
+  ============================================================
+-->
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js";
+  import {
+    getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword,
+    signOut as fbSignOut, onAuthStateChanged, sendPasswordResetEmail, updateProfile
+  } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js";
+
+  // PASTE YOUR OWN FIREBASE PROJECT CONFIG HERE:
+  const firebaseConfig = {
+    apiKey: "AIzaSyACYp-k6RKAftDTk8_9NBp_WhJtGhAo_sc",
+    authDomain: "to-do-list-e3047.firebaseapp.com",
+    projectId: "to-do-list-e3047",
+    storageBucket: "to-do-list-e3047.firebasestorage.app",
+    messagingSenderId: "1094177775915",
+    appId: "1:1094177775915:web:15f6d69a3992836313256e"
+  };
+
+  let auth = null;
+  let configOk = firebaseConfig.apiKey && firebaseConfig.apiKey.indexOf("YOUR_") !== 0;
+
+  window.TaskFlowAuth = {
+    configOk,
+    currentUser: null,
+    _ready: false,
+    _listeners: [],
+    onAuthChange(cb){ this._listeners.push(cb); if(this._ready) cb(this.currentUser); },
+    async signUp(name, email, password){
+      const cred = await createUserWithEmailAndPassword(auth, email, password);
+      if(name) await updateProfile(cred.user, {displayName: name});
+      return cred.user;
+    },
+    async signIn(email, password){
+      const cred = await signInWithEmailAndPassword(auth, email, password);
+      return cred.user;
+    },
+    async signOutUser(){ await fbSignOut(auth); },
+    async resetPassword(email){ await sendPasswordResetEmail(auth, email); }
+  };
+
+  if(configOk){
+    const app = initializeApp(firebaseConfig);
+    auth = getAuth(app);
+    onAuthStateChanged(auth, (user)=>{
+      window.TaskFlowAuth.currentUser = user;
+      window.TaskFlowAuth._ready = true;
+      window.TaskFlowAuth._listeners.forEach(cb=>cb(user));
+    });
+  } else {
+    // No real Firebase config yet — signal "ready" with no user so the
+    // app can show a setup notice instead of hanging on a blank screen.
+    window.TaskFlowAuth._ready = true;
+    setTimeout(()=> window.TaskFlowAuth._listeners.forEach(cb=>cb(null)), 0);
+  }
+</script>
 
 <script>
 (function(){
@@ -278,6 +362,21 @@
       days:"d", hours:"h", overdue_by:"Overdue by",
       pin:"Pin", unpin:"Unpin",
       about:"TaskFlow is a productivity prototype. Data is saved to your account only, on this device.",
+      app_tagline:"Sign in to manage your tasks, notes and events.",
+      sign_in:"Sign in", sign_up:"Sign up", email:"Email", password:"Password", full_name:"Full name",
+      forgot_password:"Forgot password?", reset_password:"Reset password",
+      send_reset_link:"Send reset link", back_to_login:"Back to sign in",
+      no_account:"Don't have an account? Sign up", have_account:"Already have an account? Sign in",
+      reset_sent:"If that email exists, a reset link has been sent.",
+      setup_required:"Login isn't connected yet",
+      setup_required_desc:"This app needs a free Firebase project connected before sign-in will work. Open the code and follow the setup note near the top of the file.",
+      err_email_in_use:"That email is already registered. Try signing in instead.",
+      err_weak_password:"Password should be at least 6 characters.",
+      err_invalid_email:"That email address doesn't look right.",
+      err_wrong_password:"Incorrect email or password.",
+      err_user_not_found:"Incorrect email or password.",
+      err_generic:"Something went wrong. Please try again.",
+      sign_out:"Sign out", account:"Account",
     },
     ar:{
       brand:"تاسك فلو", nav_dashboard:"لوحة التحكم", nav_tasks:"المهام", nav_calendar:"التقويم",
@@ -316,6 +415,21 @@
       days:"ي", hours:"س", overdue_by:"متأخرة منذ",
       pin:"تثبيت", unpin:"إلغاء التثبيت",
       about:"تاسك فلو هو نموذج أولي لتطبيق إنتاجية. تُحفظ البيانات في حسابك فقط على هذا الجهاز.",
+      app_tagline:"سجّل الدخول لإدارة مهامك وملاحظاتك وأحداثك.",
+      sign_in:"تسجيل الدخول", sign_up:"إنشاء حساب", email:"البريد الإلكتروني", password:"كلمة المرور", full_name:"الاسم الكامل",
+      forgot_password:"نسيت كلمة المرور؟", reset_password:"إعادة تعيين كلمة المرور",
+      send_reset_link:"إرسال رابط الاستعادة", back_to_login:"الرجوع لتسجيل الدخول",
+      no_account:"ليس لديك حساب؟ أنشئ واحدًا", have_account:"لديك حساب بالفعل؟ سجّل الدخول",
+      reset_sent:"إذا كان هذا البريد مسجلاً، تم إرسال رابط الاستعادة إليه.",
+      setup_required:"تسجيل الدخول غير مفعّل بعد",
+      setup_required_desc:"هذا التطبيق يحتاج ربط مشروع Firebase مجاني قبل ما يشتغل تسجيل الدخول. افتح الكود واتبع ملاحظة الإعداد أعلى الملف.",
+      err_email_in_use:"هذا البريد مسجل بالفعل. جرّب تسجيل الدخول بدلاً من ذلك.",
+      err_weak_password:"يجب أن تكون كلمة المرور ٦ أحرف على الأقل.",
+      err_invalid_email:"صيغة البريد الإلكتروني غير صحيحة.",
+      err_wrong_password:"البريد الإلكتروني أو كلمة المرور غير صحيحة.",
+      err_user_not_found:"البريد الإلكتروني أو كلمة المرور غير صحيحة.",
+      err_generic:"حدث خطأ ما. حاول مرة أخرى.",
+      sign_out:"تسجيل الخروج", account:"الحساب",
     }
   };
   let lang = "en";
@@ -336,13 +450,27 @@
   const uid = () => Math.random().toString(36).slice(2,10) + Date.now().toString(36);
   const nowISO = () => new Date().toISOString();
 
-  const STORE_KEY = "taskflow-state-v1";
-  async function loadState(){
+  let currentUser = null; // {uid, email, displayName}
+  let authView = 'login'; // 'login' | 'signup' | 'reset'
+  let authError = null;
+  let authInfo = null;
+  let authBusy = false;
+
+  function storeKeyFor(user){ return "taskflow-state-" + (user ? user.uid : "guest"); }
+
+  function loadState(){
+    const key = storeKeyFor(currentUser);
     try{
-      const res = await window.storage.get(STORE_KEY, false);
-      if(res && res.value){
-        const parsed = JSON.parse(res.value);
-        state = Object.assign(state, parsed);
+      const raw = localStorage.getItem(key);
+      if(raw){
+        const parsed = JSON.parse(raw);
+        state = Object.assign({
+          theme:"system", lang:"en", tasks:[], notes:[], events:[],
+          categories:["Work","Personal","Health"], view:"dashboard", search:""
+        }, parsed);
+      } else {
+        state = { theme:"system", lang:"en", tasks:[], notes:[], events:[],
+          categories:["Work","Personal","Health"], view:"dashboard", search:"" };
       }
     }catch(e){ /* first run, no data yet */ }
     lang = state.lang || "en";
@@ -352,8 +480,8 @@
   let saveTimer = null;
   function saveState(){
     clearTimeout(saveTimer);
-    saveTimer = setTimeout(async ()=>{
-      try{ await window.storage.set(STORE_KEY, JSON.stringify(state), false); }catch(e){}
+    saveTimer = setTimeout(()=>{
+      try{ localStorage.setItem(storeKeyFor(currentUser), JSON.stringify(state)); }catch(e){}
     }, 250);
   }
 
@@ -431,6 +559,11 @@
 
   function render(){
     applyThemeAndLang();
+    if(!currentUser){
+      root.innerHTML = renderAuthScreen();
+      bindAuthEvents();
+      return;
+    }
     const navItems = [
       ['dashboard','nav_dashboard','dashboard'],
       ['tasks','nav_tasks','tasks'],
@@ -451,7 +584,10 @@
         <aside class="rail">
           <div class="rail-brand">${t('brand')}</div>
           <nav>${navHtml}</nav>
-          <div class="rail-foot">${t('about')}</div>
+          <div class="rail-foot">
+            <div style="margin-bottom:8px; word-break:break-all;">${escapeHtml(currentUser.email||'')}</div>
+            <button class="btn btn-ghost btn-sm" id="sign-out-btn" style="width:100%; justify-content:center;">${t('sign_out')}</button>
+          </div>
         </aside>
         <div class="main">
           <div class="topbar">
@@ -469,11 +605,124 @@
     document.querySelectorAll('[data-nav]').forEach(btn=>{
       btn.addEventListener('click', ()=>{ state.view = btn.getAttribute('data-nav'); state.search=""; render(); });
     });
+    const signOutBtn = document.getElementById('sign-out-btn');
+    if(signOutBtn) signOutBtn.addEventListener('click', ()=>{ window.TaskFlowAuth.signOutUser().catch(()=>{}); });
     const searchInput = document.getElementById('search-input');
     searchInput.addEventListener('input', (e)=>{ state.search = e.target.value; renderView(); });
 
     renderView();
     renderModal();
+  }
+
+  function mapAuthError(err){
+    const code = (err && err.code) || '';
+    if(code.includes('email-already-in-use')) return t('err_email_in_use');
+    if(code.includes('weak-password')) return t('err_weak_password');
+    if(code.includes('invalid-email')) return t('err_invalid_email');
+    if(code.includes('wrong-password')) return t('err_wrong_password');
+    if(code.includes('user-not-found')) return t('err_user_not_found');
+    if(code.includes('invalid-credential')) return t('err_wrong_password');
+    return t('err_generic');
+  }
+
+  function renderAuthScreen(){
+    if(!window.TaskFlowAuth || !window.TaskFlowAuth.configOk){
+      return `
+        <div class="auth-wrap">
+          <div class="auth-card">
+            <div class="auth-brand">${t('brand')}</div>
+            <div class="auth-sub">${t('app_tagline')}</div>
+            <div class="auth-error">${t('setup_required')}</div>
+            <div class="auth-setup-note">${t('setup_required_desc')}</div>
+          </div>
+        </div>
+      `;
+    }
+    const tabs = authView !== 'reset' ? `
+      <div class="auth-tabs">
+        <button data-auth-tab="login" class="${authView==='login'?'active':''}">${t('sign_in')}</button>
+        <button data-auth-tab="signup" class="${authView==='signup'?'active':''}">${t('sign_up')}</button>
+      </div>` : '';
+
+    let fields = '';
+    if(authView === 'signup'){
+      fields = `
+        <div class="field"><label>${t('full_name')}</label><input type="text" id="a-name"/></div>
+        <div class="field"><label>${t('email')}</label><input type="text" id="a-email" autocomplete="email"/></div>
+        <div class="field"><label>${t('password')}</label><input type="password" id="a-password" autocomplete="new-password"/></div>
+        <button class="btn btn-primary auth-submit" id="a-submit" ${authBusy?'disabled':''}>${t('sign_up')}</button>
+      `;
+    } else if(authView === 'reset'){
+      fields = `
+        <div class="field"><label>${t('email')}</label><input type="text" id="a-email" autocomplete="email"/></div>
+        <button class="btn btn-primary auth-submit" id="a-submit" ${authBusy?'disabled':''}>${t('send_reset_link')}</button>
+        <button class="auth-link" id="a-back">${t('back_to_login')}</button>
+      `;
+    } else {
+      fields = `
+        <div class="field"><label>${t('email')}</label><input type="text" id="a-email" autocomplete="email"/></div>
+        <div class="field"><label>${t('password')}</label><input type="password" id="a-password" autocomplete="current-password"/></div>
+        <button class="btn btn-primary auth-submit" id="a-submit" ${authBusy?'disabled':''}>${t('sign_in')}</button>
+        <button class="auth-link" id="a-forgot">${t('forgot_password')}</button>
+      `;
+    }
+
+    return `
+      <div class="auth-wrap">
+        <div class="auth-card">
+          <div class="auth-brand">${t('brand')}</div>
+          <div class="auth-sub">${t('app_tagline')}</div>
+          ${tabs}
+          ${authError ? `<div class="auth-error">${escapeHtml(authError)}</div>` : ''}
+          ${authInfo ? `<div class="auth-info">${escapeHtml(authInfo)}</div>` : ''}
+          ${fields}
+        </div>
+      </div>
+    `;
+  }
+
+  function bindAuthEvents(){
+    document.querySelectorAll('[data-auth-tab]').forEach(b=>{
+      b.addEventListener('click', ()=>{
+        authView = b.getAttribute('data-auth-tab'); authError=null; authInfo=null; render();
+      });
+    });
+    const forgotBtn = document.getElementById('a-forgot');
+    if(forgotBtn) forgotBtn.addEventListener('click', ()=>{ authView='reset'; authError=null; authInfo=null; render(); });
+    const backBtn = document.getElementById('a-back');
+    if(backBtn) backBtn.addEventListener('click', ()=>{ authView='login'; authError=null; authInfo=null; render(); });
+
+    const submitBtn = document.getElementById('a-submit');
+    if(!submitBtn) return;
+    submitBtn.addEventListener('click', async ()=>{
+      authError = null; authInfo = null;
+      const emailEl = document.getElementById('a-email');
+      const email = emailEl ? emailEl.value.trim() : '';
+      try{
+        if(authView === 'signup'){
+          const password = document.getElementById('a-password').value;
+          const name = document.getElementById('a-name').value.trim();
+          if(!email || !password){ authError = t('err_generic'); render(); return; }
+          authBusy = true; render();
+          await window.TaskFlowAuth.signUp(name, email, password);
+        } else if(authView === 'reset'){
+          if(!email){ authError = t('err_generic'); render(); return; }
+          authBusy = true; render();
+          await window.TaskFlowAuth.resetPassword(email);
+          authBusy = false; authInfo = t('reset_sent'); authView='login'; render();
+          return;
+        } else {
+          const password = document.getElementById('a-password').value;
+          if(!email || !password){ authError = t('err_generic'); render(); return; }
+          authBusy = true; render();
+          await window.TaskFlowAuth.signIn(email, password);
+        }
+      }catch(err){
+        authBusy = false;
+        authError = mapAuthError(err);
+        render();
+      }
+    });
   }
 
   function renderView(){
@@ -1084,6 +1333,15 @@
   function renderSettingsView(){
     return `
       <div class="settings-group">
+        <h3>${t('account')}</h3>
+        <div class="card">
+          <div class="opt-row">
+            <div><div class="opt-lbl">${escapeHtml(currentUser.email||'')}</div></div>
+            <button class="btn btn-ghost btn-sm" id="settings-sign-out">${t('sign_out')}</button>
+          </div>
+        </div>
+      </div>
+      <div class="settings-group">
         <h3>${t('appearance')}</h3>
         <div class="card">
           <div class="opt-row">
@@ -1112,6 +1370,8 @@
     `;
   }
   function bindSettingsEvents(){
+    const settingsSignOut = document.getElementById('settings-sign-out');
+    if(settingsSignOut) settingsSignOut.addEventListener('click', ()=>{ window.TaskFlowAuth.signOutUser().catch(()=>{}); });
     document.querySelectorAll('[data-theme-opt]').forEach(b=>{
       b.addEventListener('click', ()=>{ state.theme = b.getAttribute('data-theme-opt'); saveState(); render(); });
     });
@@ -1175,7 +1435,18 @@
   }
 
   /* ---------------- Init ---------------- */
-  loadState();
+  function waitForAuth(){
+    if(window.TaskFlowAuth){
+      window.TaskFlowAuth.onAuthChange((user)=>{
+        currentUser = user ? { uid:user.uid, email:user.email, displayName:user.displayName } : null;
+        authBusy = false; authError = null;
+        if(currentUser){ loadState(); } else { render(); }
+      });
+    } else {
+      setTimeout(waitForAuth, 30);
+    }
+  }
+  waitForAuth();
 
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
